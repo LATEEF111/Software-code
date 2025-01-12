@@ -1,0 +1,1219 @@
+UN Optimized
+CART
+// Define label and bands
+var label = 'Class';
+var bands = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'];
+// Select relevant bands from input image
+var input = image.select(bands);
+// Merge the training data for various land cover classes
+var training = Water.merge(Forest).merge(Urban).merge(Glacier).merge(Barren)
+                  .merge(Plantation).merge(Marshes).merge(Agriculture);
+print(training);
+// Sample regions from the image for training
+var trainimage = input.sampleRegions({
+  collection: training,
+  properties: [label],
+  scale: 30
+});
+print(trainimage);
+// Print the size of the entire training dataset
+print('Training data size:', trainimage.size());
+// Split the data into training and testing sets using a random column
+var trainingData = trainimage.randomColumn('random', 1);  // Use a seed for reproducibility
+// Check the stats for the random column to ensure values range between 0 and 1
+print('Random column stats:', trainingData.aggregate_stats('random'));
+// Filter the dataset to create training (80%) and testing (20%) sets
+var trainset = trainingData.filter(ee.Filter.lt('random', 0.8));  // Training set (less than 0.8)
+var testset = trainingData.filter(ee.Filter.gte('random', 0.8));  // Testing set (greater or equal to 0.8)
+// Print the sizes of the training and testing sets to verify the split
+print('Training set size:', trainset.size());  // Should show more than 8 samples
+print('Testing set size:', testset.size());    // Should show more than 8 samples
+// Train a CART classifier with 100 trees
+var classifier = ee.Classifier.smileCart().train(trainset,label,bands);
+// Classify the input image using the Random Forest classifier
+var classified = input.classify(classifier);
+print(classified.getInfo());
+// Define a color palette for the land cover classes
+var landcoverPalette = [
+  '#2934ff', // water (0)
+  '#0d7e0e', // forest (1)
+  '#edf613', // urban (2)
+  '#bf04c2', // glacier (3)
+  '#ff8b07', // barren (4)
+  '#a7d05e', // plantation (5)
+  '#d89376', // marshes (6)
+  '#0ac5af'  // agriculture (7)
+];
+// Add the classified image to the map
+Map.addLayer(classified, {palette: landcoverPalette, min: 0, max: 7}, 'classification');
+// Export the classified image to Google Drive
+Export.image.toDrive({
+  image: classified,
+  description: 'LULC_Classification_CART',  // Description of the task
+  scale: 30,  // Spatial resolution
+  region: image.geometry(),  // Region of interest
+  maxPixels: 1e13,  // Maximum number of pixels
+  crs: 'EPSG:4326',  // Coordinate Reference System
+  folder: 'LULC'  // Optional: specify folder in Google Drive
+});
+// Step 1: Create a pixel area image in square meters
+var areaImage = ee.Image.pixelArea();
+// Step 2: Mask classified image for each class and calculate area
+// Water (0)
+var waterArea = areaImage.updateMask(classified.eq(0));
+var waterAreaSum = waterArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Water Area (sq meters):', waterAreaSum);
+// Forest (1)
+var forestArea = areaImage.updateMask(classified.eq(1));
+var forestAreaSum = forestArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Forest Area (sq meters):', forestAreaSum);
+// Urban (2)
+var urbanArea = areaImage.updateMask(classified.eq(2));
+var urbanAreaSum = urbanArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Urban Area (sq meters):', urbanAreaSum);
+// Glacier (3)
+var glacierArea = areaImage.updateMask(classified.eq(3));
+var glacierAreaSum = glacierArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Glacier Area (sq meters):', glacierAreaSum);
+// Barren (4)
+var barrenArea = areaImage.updateMask(classified.eq(4));
+var barrenAreaSum = barrenArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Barren Area (sq meters):', barrenAreaSum);
+// Plantation (5)
+var plantationArea = areaImage.updateMask(classified.eq(5));
+var plantationAreaSum = plantationArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Plantation Area (sq meters):', plantationAreaSum);
+// Marshes (6)
+var marshArea = areaImage.updateMask(classified.eq(6));
+var marshAreaSum = marshArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Marsh Area (sq meters):', marshAreaSum);
+// Agriculture (7)
+var agricultureArea = areaImage.updateMask(classified.eq(7));
+var agricultureAreaSum = agricultureArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Agriculture Area (sq meters):', agricultureAreaSum);
+// Step 3: Convert areas from square meters to square kilometers
+var sqMetersToSqKilometers = function(area){
+  return ee.Number(area).divide(1e6);  // 1 sq kilometer = 1,000,000 sq meters
+};
+// Print areas in square kilometers
+print('Water Area (sq kilometers):', sqMetersToSqKilometers(waterAreaSum.get('area')));
+print('Forest Area (sq kilometers):', sqMetersToSqKilometers(forestAreaSum.get('area')));
+print('Urban Area (sq kilometers):', sqMetersToSqKilometers(urbanAreaSum.get('area')));
+print('Glacier Area (sq kilometers):', sqMetersToSqKilometers(glacierAreaSum.get('area')));
+print('Barren Area (sq kilometers):', sqMetersToSqKilometers(barrenAreaSum.get('area')));
+print('Plantation Area (sq kilometers):', sqMetersToSqKilometers(plantationAreaSum.get('area')));
+print('Marsh Area (sq kilometers):', sqMetersToSqKilometers(marshAreaSum.get('area')));
+print('Agriculture Area (sq kilometers):', sqMetersToSqKilometers(agricultureAreaSum.get('area')));
+// Step 4: Classify the test set and compute the confusion matrix
+var validated = testset.classify(classifier);
+// Get a confusion matrix for the test set classification
+var confusionMatrix = validated.errorMatrix({
+  actual: label,
+  predicted: 'classification'
+});
+print('Confusion Matrix:', confusionMatrix);
+// Overall accuracy
+var accuracy = confusionMatrix.accuracy();
+print('Overall Accuracy:', accuracy);
+// Kappa Coefficient
+var kappa = confusionMatrix.kappa();
+print('Kappa Coefficient:', kappa);
+// Producers accuracy (for each class)
+var producersAccuracy = confusionMatrix.producersAccuracy();
+print('Producers Accuracy:', producersAccuracy);
+// Users accuracy (for each class)
+var usersAccuracy = confusionMatrix.consumersAccuracy();
+print('Users Accuracy:', usersAccuracy);
+
+SVM
+// Define label and bands
+var label = 'Class';
+var bands = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'];
+
+// Select relevant bands from input image
+var input = image.select(bands);
+
+// Merge the training data for various land cover classes
+var training = Water.merge(Forest).merge(Urban).merge(Glacier).merge(Barren)
+                  .merge(Plantation).merge(Marshes).merge(Agriculture);
+print(training);
+
+// Sample regions from the image for training
+var trainimage = input.sampleRegions({
+  collection: training,
+  properties: [label],
+  scale: 30
+});
+print(trainimage);
+
+// Print the size of the entire training dataset
+print('Training data size:', trainimage.size());
+
+// Split the data into training and testing sets using a random column
+var trainingData = trainimage.randomColumn('random', 1);  // Use a seed for reproducibility
+
+// Check the stats for the random column to ensure values range between 0 and 1
+print('Random column stats:', trainingData.aggregate_stats('random'));
+
+// Filter the dataset to create training (80%) and testing (20%) sets
+var trainset = trainingData.filter(ee.Filter.lt('random', 0.8));  // Training set (less than 0.8)
+var testset = trainingData.filter(ee.Filter.gte('random', 0.8));  // Testing set (greater or equal to 0.8)
+
+// Print the sizes of the training and testing sets to verify the split
+print('Training set size:', trainset.size());  // Should show more than 8 samples
+print('Testing set size:', testset.size());    // Should show more than 8 samples
+
+// Train an SVM classifier
+var classifier = ee.Classifier.libsvm().train(trainset, label, bands);
+
+// Classify the input image using the SVM classifier
+var classified = input.classify(classifier);
+print(classified.getInfo());
+
+// Define a color palette for the land cover classes
+var landcoverPalette = [
+  '#2934ff', // water (0)
+  '#0d7e0e', // forest (1)
+  '#edf613', // urban (2)
+  '#bf04c2', // glacier (3)
+  '#ff8b07', // barren (4)
+  '#a7d05e', // plantation (5)
+  '#d89376', // marshes (6)
+  '#0ac5af'  // agriculture (7)
+];
+
+// Add the classified image to the map
+Map.addLayer(classified, {palette: landcoverPalette, min: 0, max: 7}, 'classification');
+
+
+// Export the classified image to Google Drive
+Export.image.toDrive({
+  image: classified,
+  description: 'LULC_Classification_CART', // Description of the task
+  scale: 30,  // Spatial resolution
+  region: image.geometry(),  // Region of interest
+  maxPixels: 1e13,  // Maximum number of pixels
+  crs: 'EPSG:4326',  // Coordinate Reference System
+  folder: 'LULC'  // Optional: specify folder in Google Drive
+});
+
+// Step 1: Create a pixel area image in square meters
+var areaImage = ee.Image.pixelArea();
+
+// Step 2: Mask classified image for each class and calculate area
+
+// Water (0)
+var waterArea = areaImage.updateMask(classified.eq(0));
+var waterAreaSum = waterArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Water Area (sq meters):', waterAreaSum);
+
+// Forest (1)
+var forestArea = areaImage.updateMask(classified.eq(1));
+var forestAreaSum = forestArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Forest Area (sq meters):', forestAreaSum);
+
+// Urban (2)
+var urbanArea = areaImage.updateMask(classified.eq(2));
+var urbanAreaSum = urbanArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Urban Area (sq meters):', urbanAreaSum);
+
+// Glacier (3)
+var glacierArea = areaImage.updateMask(classified.eq(3));
+var glacierAreaSum = glacierArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Glacier Area (sq meters):', glacierAreaSum);
+
+// Barren (4)
+var barrenArea = areaImage.updateMask(classified.eq(4));
+var barrenAreaSum = barrenArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Barren Area (sq meters):', barrenAreaSum);
+
+// Plantation (5)
+var plantationArea = areaImage.updateMask(classified.eq(5));
+var plantationAreaSum = plantationArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Plantation Area (sq meters):', plantationAreaSum);
+
+// Marshes (6)
+var marshArea = areaImage.updateMask(classified.eq(6));
+var marshAreaSum = marshArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Marsh Area (sq meters):', marshAreaSum);
+
+// Agriculture (7)
+var agricultureArea = areaImage.updateMask(classified.eq(7));
+var agricultureAreaSum = agricultureArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Agriculture Area (sq meters):', agricultureAreaSum);
+
+// Step 3: Convert areas from square meters to square kilometers
+var sqMetersToSqKilometers = function(area){
+  return ee.Number(area).divide(1e6);  // 1 sq kilometer = 1,000,000 sq meters
+};
+
+// Print areas in square kilometers
+print('Water Area (sq kilometers):', sqMetersToSqKilometers(waterAreaSum.get('area')));
+print('Forest Area (sq kilometers):', sqMetersToSqKilometers(forestAreaSum.get('area')));
+print('Urban Area (sq kilometers):', sqMetersToSqKilometers(urbanAreaSum.get('area')));
+print('Glacier Area (sq kilometers):', sqMetersToSqKilometers(glacierAreaSum.get('area')));
+print('Barren Area (sq kilometers):', sqMetersToSqKilometers(barrenAreaSum.get('area')));
+print('Plantation Area (sq kilometers):', sqMetersToSqKilometers(plantationAreaSum.get('area')));
+print('Marsh Area (sq kilometers):', sqMetersToSqKilometers(marshAreaSum.get('area')));
+print('Agriculture Area (sq kilometers):', sqMetersToSqKilometers(agricultureAreaSum.get('area')));
+
+// Step 4: Classify the test set and compute the confusion matrix
+var validated = testset.classify(classifier);
+
+// Get a confusion matrix for the test set classification
+var confusionMatrix = validated.errorMatrix({
+  actual: label,
+  predicted: 'classification'
+});
+print('Confusion Matrix:', confusionMatrix);
+
+// Overall accuracy
+var accuracy = confusionMatrix.accuracy();
+print('Overall Accuracy:', accuracy);
+
+// Kappa Coefficient
+var kappa = confusionMatrix.kappa();
+print('Kappa Coefficient:', kappa);
+
+// Producers accuracy (for each class)
+var producersAccuracy = confusionMatrix.producersAccuracy();
+print('Producers Accuracy:', producersAccuracy);
+
+// Users accuracy (for each class)
+var usersAccuracy = confusionMatrix.consumersAccuracy();
+print('Users Accuracy:', usersAccuracy);
+
+
+FOW SVM OPTIMIZED 
+CODE SNIPPER 
+// Train an SVM classifier with specified hyperparameters
+var classifier = ee.Classifier.libsvm({
+  kernelType: 'LINEAR',  // Set activation function to linear
+  cost: 13.385           // Set the C (regularization parameter)
+}).train(trainset, label, bands);
+
+
+
+
+
+
+
+
+
+RANDOM FOREST
+// Define label and bands
+var label = 'Class';
+var bands = ['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7'];
+
+// Select relevant bands from input image
+var input = image.select(bands);
+
+// Merge the training data for various land cover classes
+var training = Water.merge(Forest).merge(Urban).merge(Glacier).merge(Barren)
+                  .merge(Plantation).merge(Marshes).merge(Agriculture);
+print(training);
+
+// Sample regions from the image for training
+var trainimage = input.sampleRegions({
+  collection: training,
+  properties: [label],
+  scale: 30
+});
+print(trainimage);
+
+// Split the data into training and testing sets using a random column
+var trainingData = trainimage.randomColumn();
+var trainset = trainingData.filter(ee.Filter.lessThan('random', 0.8));
+var testset = trainingData.filter(ee.Filter.greaterThanOrEquals('random', 0.8));
+
+// Train a Random Forest classifier with 100 trees
+var classifier = ee.Classifier.smileRandomForest(100).train({
+  features: trainset,
+  classProperty: label,
+  inputProperties: bands
+});
+
+// Classify the input image using the Random Forest classifier
+var classified = input.classify(classifier);
+print(classified.getInfo());
+
+// Define a color palette for the land cover classes
+var landcoverPalette = [
+  '#2934ff', // water (0)
+  '#0d7e0e', // forest (1)
+  '#edf613', // urban (2)
+  '#bf04c2', // glacier (3)
+  '#ff8b07', // barren (4)
+  '#a7d05e', // plantation (5)
+  '#d89376', // marshes (6)
+  '#0ac5af'  // agriculture (7)
+];
+
+// Add the classified image to the map
+Map.addLayer(classified, {palette: landcoverPalette, min: 0, max: 7}, 'classification');
+
+// Export the classified image to Google Drive
+Export.image.toDrive({
+  image: classified,
+  description: 'LULC_Classification_RF',  // Description of the task
+  scale: 30,  // Spatial resolution
+  region: image.geometry(),  // Region of interest
+  maxPixels: 1e13,  // Maximum number of pixels
+  crs: 'EPSG:4326',  // Coordinate Reference System
+  folder: 'LULC'  // Optional: specify folder in Google Drive
+});
+
+// Step 1: Create a pixel area image in square meters
+var areaImage = ee.Image.pixelArea();
+
+// Step 2: Mask classified image for each class and calculate area
+
+// Water (0)
+var waterArea = areaImage.updateMask(classified.eq(0));
+var waterAreaSum = waterArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Water Area (sq meters):', waterAreaSum);
+
+// Forest (1)
+var forestArea = areaImage.updateMask(classified.eq(1));
+var forestAreaSum = forestArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Forest Area (sq meters):', forestAreaSum);
+
+// Urban (2)
+var urbanArea = areaImage.updateMask(classified.eq(2));
+var urbanAreaSum = urbanArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Urban Area (sq meters):', urbanAreaSum);
+
+// Glacier (3)
+var glacierArea = areaImage.updateMask(classified.eq(3));
+var glacierAreaSum = glacierArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Glacier Area (sq meters):', glacierAreaSum);
+
+// Barren (4)
+var barrenArea = areaImage.updateMask(classified.eq(4));
+var barrenAreaSum = barrenArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Barren Area (sq meters):', barrenAreaSum);
+
+// Plantation (5)
+var plantationArea = areaImage.updateMask(classified.eq(5));
+var plantationAreaSum = plantationArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Plantation Area (sq meters):', plantationAreaSum);
+
+// Marshes (6)
+var marshArea = areaImage.updateMask(classified.eq(6));
+var marshAreaSum = marshArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Marsh Area (sq meters):', marshAreaSum);
+
+// Agriculture (7)
+var agricultureArea = areaImage.updateMask(classified.eq(7));
+var agricultureAreaSum = agricultureArea.reduceRegion({
+  reducer: ee.Reducer.sum(),
+  geometry: image.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+print('Agriculture Area (sq meters):', agricultureAreaSum);
+
+// Step 3: Convert areas from square meters to square kilometers
+var sqMetersToSqKilometers = function(area){
+  return ee.Number(area).divide(1e6);  // 1 sq kilometer = 1,000,000 sq meters
+};
+
+// Print areas in square kilometers
+print('Water Area (sq kilometers):', sqMetersToSqKilometers(waterAreaSum.get('area')));
+print('Forest Area (sq kilometers):', sqMetersToSqKilometers(forestAreaSum.get('area')));
+print('Urban Area (sq kilometers):', sqMetersToSqKilometers(urbanAreaSum.get('area')));
+print('Glacier Area (sq kilometers):', sqMetersToSqKilometers(glacierAreaSum.get('area')));
+print('Barren Area (sq kilometers):', sqMetersToSqKilometers(barrenAreaSum.get('area')));
+print('Plantation Area (sq kilometers):', sqMetersToSqKilometers(plantationAreaSum.get('area')));
+print('Marsh Area (sq kilometers):', sqMetersToSqKilometers(marshAreaSum.get('area')));
+print('Agriculture Area (sq kilometers):', sqMetersToSqKilometers(agricultureAreaSum.get('area')));
+
+// Step 4: Classify the test set and compute the confusion matrix
+var validated = testset.classify(classifier);
+
+// Get a confusion matrix for the test set classification
+var confusionMatrix = validated.errorMatrix({
+  actual: label,
+  predicted: 'classification'
+});
+print('Confusion Matrix:', confusionMatrix);
+
+// Overall accuracy
+var accuracy = confusionMatrix.accuracy();
+print('Overall Accuracy:', accuracy);
+
+// Kappa Coefficient
+var kappa = confusionMatrix.kappa();
+print('Kappa Coefficient:', kappa);
+
+// Producers accuracy (for each class)
+var producersAccuracy = confusionMatrix.producersAccuracy();
+print('Producers Accuracy:', producersAccuracy);
+
+// Users accuracy (for each class)
+var usersAccuracy = confusionMatrix.consumersAccuracy();
+print('Users Accuracy:', usersAccuracy);
+
+
+
+FOR optimized 
+// Train a Random Forest classifier with 100 trees
+var classifier = ee.Classifier.smileRandomForest(185).train({
+  features: trainset,
+  classProperty: label,
+  inputProperties: bands
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+CNN (GA +Classification)
+import pandas as pd
+import numpy as np
+import rasterio
+from rasterio.mask import mask
+import geopandas as gpd
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import confusion_matrix, cohen_kappa_score
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
+import matplotlib.pyplot as plt
+from deap import base, creator, tools, algorithms
+import random
+import tensorflow as tf
+# Step 1: Load the raster file to get its CRS
+raster_file_path = "C:/Users/HP/Desktop/LULC/rasteerclipped2024.tif"
+
+try:
+    with rasterio.open(raster_file_path) as src:
+        raster_crs = src.crs
+except Exception as e:
+    print(f"Error loading raster file: {e}")
+
+# Step 2: Load the shapefile and reproject to match raster CRS
+shapefile_path = "C:/Users/HP/Desktop/LULC/Mosaic 2024/outline_basin.shp"
+
+try:
+    gdf = gpd.read_file(shapefile_path)
+    if gdf.crs != raster_crs:
+        gdf = gdf.to_crs(raster_crs)
+except Exception as e:
+    print(f"Error loading or reprojecting shapefile: {e}")
+
+# Step 3: Clip the raster
+try:
+    with rasterio.open(raster_file_path) as src:
+        out_image, out_transform = mask(src, shapes=gdf.geometry, crop=True)
+        out_meta = src.meta.copy()
+        out_meta.update({"driver": "GTiff", "height": out_image.shape[1], "width": out_image.shape[2], "transform": out_transform})
+except Exception as e:
+    print(f"Error clipping raster: {e}")
+
+clipped_raster_path = "C:/Users/HP/Desktop/LULC/CNN in Python/clipped_raster1.tif"
+with rasterio.open(clipped_raster_path, 'w', **out_meta) as dest:
+    dest.write(out_image)
+
+# Step 4: Load training data
+csv_file = "C:/Users/HP/Desktop/LULC/CNN in Python/TrainingDataExportunoptimized.csv"
+
+try:
+    data = pd.read_csv(csv_file)
+except Exception as e:
+    print(f"Error loading CSV file: {e}")
+
+# Step 5: Extract features and labels
+X = data[['b1', 'b2', 'b3', 'b4', 'b5', 'b6', 'b7']].values
+y = data['Class'].values
+
+# Encode the class labels
+label_encoder = LabelEncoder()
+y_encoded = label_encoder.fit_transform(y)
+
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X, y_encoded, test_size=0.2, random_state=42)
+
+# Normalize input data
+scaler = StandardScaler()
+X_train_reshaped = scaler.fit_transform(X_train).reshape(-1, 7, 1, 1)
+X_test_reshaped = scaler.transform(X_test).reshape(-1, 7, 1, 1)
+
+# Step 6: Define CNN Model Function
+def create_cnn_model(filters1, kernel_size1, filters2, kernel_size2, dense_units, dropout_rate1, dropout_rate2):
+    model = Sequential([
+        Conv2D(filters1, kernel_size=(kernel_size1, 1), activation='relu', input_shape=(7, 1, 1), padding='same'),
+        MaxPooling2D(pool_size=(2, 1)),
+        Dropout(dropout_rate1),
+        Conv2D(filters2, kernel_size=(kernel_size2, 1), activation='relu', padding='same'),
+        MaxPooling2D(pool_size=(2, 1)),
+        Flatten(),
+        Dense(dense_units, activation='relu'),
+        Dropout(dropout_rate2),
+        Dense(len(np.unique(y_encoded)), activation='softmax')
+    ])
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+    return model
+
+  
+
+# Step 9: Train the final CNN model with the best hyperparameters
+best_filters1, best_kernel_size1, best_filters2, best_kernel_size2, best_dense_units, best_dropout_rate1, best_dropout_rate2 = best_individual
+best_dropout_rate1 /= 10
+best_dropout_rate2 /= 10
+
+final_model = create_cnn_model(int(best_filters1), int(best_kernel_size1), int(best_filters2), 
+                               int(best_kernel_size2), int(best_dense_units), best_dropout_rate1, best_dropout_rate2)
+
+# Train the final model
+history = final_model.fit(X_train_reshaped, y_train, epochs=25, batch_size=32, validation_split=0.2)
+
+# Step 10: Evaluate the final model
+y_pred = np.argmax(final_model.predict(X_test_reshaped), axis=-1)
+conf_matrix = confusion_matrix(y_test, y_pred)
+overall_accuracy = np.trace(conf_matrix) / np.sum(conf_matrix)
+kappa = cohen_kappa_score(y_test, y_pred)
+
+print("Confusion Matrix:\n", conf_matrix)
+print("\nOverall Accuracy: {:.2f}%".format(overall_accuracy * 100))
+print("\nKappa Coefficient:", kappa)
+
+# Step 11: Load and classify the raster
+def classify_raster(raster_path, model, scaler, output_raster_path):
+    try:
+        with rasterio.open(raster_path) as src:
+            # Read the raster bands as numpy arrays
+            bands = [src.read(i+1) for i in range(src.count)]
+            
+            # Stack the bands to create a multi-dimensional array (band-wise stacked)
+            stacked_bands = np.stack(bands, axis=-1)
+            
+            # Reshape the raster into a 2D array where each row is a pixel and each column is a band
+            nrows, ncols, nbands = stacked_bands.shape
+            reshaped_raster = stacked_bands.reshape(-1, nbands)
+
+            # Normalize the raster data using the scaler fitted on the training data
+            reshaped_raster_scaled = scaler.transform(reshaped_raster)
+
+            # Reshape the scaled raster data to match the input shape of the CNN model
+            reshaped_raster_scaled = reshaped_raster_scaled.reshape(-1, nbands, 1, 1)
+
+            # Predict the class for each pixel
+            predictions = model.predict(reshaped_raster_scaled)
+            predicted_classes = np.argmax(predictions, axis=-1)
+
+            # Reshape the predictions back to the original raster dimensions
+            classified_raster = predicted_classes.reshape(nrows, ncols)
+
+            # Write the classified raster to a new file
+            with rasterio.open(output_raster_path, 'w', driver='GTiff', height=nrows, width=ncols, count=1,
+                               dtype='int32', crs=src.crs, transform=src.transform) as dst:
+                dst.write(classified_raster, 1)
+    except Exception as e:
+        print(f"Error classifying raster: {e}")
+
+classified_raster_path = "C:/Users/HP/Desktop/LULC/CNN in Python/classified_rasterCNNOPTIMIZEDCNNFINAL.tif"
+classify_raster(clipped_raster_path, final_model, scaler, classified_raster_path)
+
+
+
+
+
+#code for computation of change of  areas on one land classes to another
+
+// Define the land classes with their IDs and names
+var landClasses = [
+  {id: 0, name: 'Water'},
+  {id: 1, name: 'Forest'},
+  {id: 2, name: 'Urban'},
+  {id: 3, name: 'Glacier'},
+  {id: 4, name: 'Barren'},
+  {id: 5, name: 'Plantation'},
+  {id: 6, name: 'Marshes'},
+  {id: 7, name: 'Agriculture'}
+];
+
+// Function to compute transitions and areas for each class
+var calculateTransitions = function(classObj) {
+  var classId = classObj.id;
+  var className = classObj.name;
+
+  // Initialize an array to store transition features
+  var transitions = [];
+
+  // Loop over each target land class to calculate the transition
+  landClasses.forEach(function(targetObj) {
+    var targetId = targetObj.id;
+    var targetName = targetObj.name;
+
+    // Create a mask for the transition: areas where 'before' was 'classId' and 'after' is 'targetId'
+    var transitionMask = before.eq(classId).and(after.eq(targetId));
+
+    // Check if there's a non-zero area in the mask (transition occurred)
+    var nonZeroCheck = transitionMask.reduceRegion({
+      reducer: ee.Reducer.sum(),
+      geometry: before.geometry(), // Geometry of the image or area of interest
+      scale: 30, // Nominal scale for the image resolution
+      maxPixels: 1e9
+    });
+
+    // Check if there's a non-zero area in the mask
+    nonZeroCheck.evaluate(function(result) {
+      var keys = Object.keys(result);  // Get the keys of the dictionary
+
+      if (keys.length > 0) {
+        var nonZeroArea = result[keys[0]];  // Access the value of the first key
+        
+        // If the area is non-zero, calculate the area in square kilometers
+        if (nonZeroArea > 0) {
+          // Calculate the area of the transition (in square meters)
+          var area = transitionMask.multiply(ee.Image.pixelArea()) // Multiply by pixel area
+                             .reduceRegion({
+                               reducer: ee.Reducer.sum(),
+                               geometry: before.geometry(), // Use the extent of the images
+                               scale: 30, // Match resolution
+                               maxPixels: 1e13
+                             });
+
+          // Convert area to square kilometers (1 sq.km = 1,000,000 sq.m)
+          area.evaluate(function(areaResult) {
+            var areaValue = areaResult[keys[0]];  // Access the area value dynamically
+
+            // Print the area in square kilometers
+            var areaInSqKm = areaValue / 1e6;  // Convert from sq.m to sq.km
+            print('Transition Area in km2 from ' + className + ' to ' + targetName, areaInSqKm);
+
+            // Create a feature for the transition with the area in km^2
+            transitions.push(ee.Feature(null, {
+              'Change_Area_km2': areaInSqKm,
+              'From_Class_ID': classId,
+              'From_Class_Name': className,
+              'To_Class_ID': targetId,
+              'To_Class_Name': targetName
+            }));
+          });
+        }
+      }
+    });
+  });
+
+  // Return a feature collection of the transitions for the current land class
+  return ee.FeatureCollection(transitions);
+};
+
+// Compute transitions for all land classes
+var allTransitions = landClasses.map(calculateTransitions);
+var transitionAreas = ee.FeatureCollection(allTransitions).flatten();
+
+// Print transition areas to the console
+print('Transition Areas (From → To with Areas in sq.km):', transitionAreas);
+
+// Export the transition areas as a table
+Export.table.toDrive({
+  collection: transitionAreas,
+  description: 'TransitionAreasWithChangeGeometry',
+  fileFormat: 'CSV'
+});
+
+#Code to prepare the combined change detection map of one land class to another on a single map
+// Define the land classes with their IDs and names
+var landClasses = [
+  {id: 0, name: 'Water'},
+  {id: 1, name: 'Forest'},
+  {id: 2, name: 'Urban'},
+  {id: 3, name: 'Glacier'},
+  {id: 4, name: 'Barren'},
+  {id: 5, name: 'Plantation'},
+  {id: 6, name: 'Marshes'},
+  {id: 7, name: 'Agriculture'}
+];
+
+// Function to generate a unique hex color palette
+var generateHexPalette = function(numColors) {
+  var colors = [];
+  for (var i = 0; i < numColors; i++) {
+    var hue = (i * 137.508) % 360; // Spread colors using the golden ratio
+    var rgb = hslToRgb(hue / 360, 0.7, 0.5);
+    var hexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
+    colors.push(hexColor);
+  }
+  return colors;
+};
+
+// Convert HSL to RGB
+function hslToRgb(h, s, l) {
+  var r, g, b;
+  if (s === 0) {
+    r = g = b = l; // Achromatic
+  } else {
+    var hue2rgb = function hue2rgb(p, q, t) {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+// Convert RGB to Hex
+function rgbToHex(r, g, b) {
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+}
+
+// Initialize the number of possible transitions
+var numTransitions = (landClasses.length * (landClasses.length - 1)); // From each class to every other class
+var palette = generateHexPalette(numTransitions);
+
+// Initialize an empty image to hold all transitions
+var allTransitions = ee.Image(0);
+
+// Initialize a dictionary for transition legend
+var transitionLegend = {};
+
+// Assign a unique ID for each transition and visualize
+var transitionIndex = 1; // Start from 1 to avoid overlap with the background
+landClasses.forEach(function(fromClass) {
+  var fromId = fromClass.id;
+  var fromName = fromClass.name;
+
+  landClasses.forEach(function(toClass) {
+    var toId = toClass.id;
+    var toName = toClass.name;
+
+    // Skip transitions where the class does not change
+    if (fromId !== toId) {
+      // Create a mask for this specific transition
+      var transitionMask = before.eq(fromId).and(after.eq(toId));
+
+      // Assign a unique value to this transition
+      var transitionLayer = transitionMask.multiply(transitionIndex);
+
+      // Add the transition layer to the overall transitions image
+      allTransitions = allTransitions.add(transitionLayer);
+
+      // Add this transition to the legend dictionary
+      var shortLegend = fromName.slice(0, 2).toUpperCase() + " → " + toName.slice(0, 2).toUpperCase();
+      transitionLegend[transitionIndex] = shortLegend;
+
+      // Increment the transition index
+      transitionIndex++;
+    }
+  });
+});
+
+// Visualize all transitions on the map using the defined palette
+var transitionVis = allTransitions.visualize({
+  min: 1, // Minimum transition ID
+  max: transitionIndex - 1, // Maximum transition ID
+  palette: palette.slice(0, transitionIndex - 1) // Dynamically generated palette
+});
+
+// Add the layer to the map
+Map.addLayer(transitionVis, {}, 'Land Class Transitions');
+
+// Export the map image to Google Drive
+Export.image.toDrive({
+  image: allTransitions,
+  description: 'LandClassTransitions',
+  region: before.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+
+// Create a legend panel
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-left',
+    padding: '8px 15px'
+  }
+});
+
+// Add a title to the legend
+legend.add(ui.Label({
+  value: 'Land Class Transitions',
+  style: {
+    fontWeight: 'bold',
+    fontSize: '14px',
+    margin: '0 0 4px 0',
+    padding: '0'
+  }
+}));
+
+// Add each transition to the legend
+Object.keys(transitionLegend).forEach(function(transitionId) {
+  var color = palette[transitionId - 1];
+  var description = transitionLegend[transitionId];
+
+  // Create a legend row
+  var legendRow = ui.Panel({
+    widgets: [
+      ui.Label({
+        style: {
+          backgroundColor: color,
+          padding: '8px',
+          margin: '0 8px 0 0'
+        }
+      }),
+      ui.Label(description)
+    ],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+
+  // Add the row to the legend
+  legend.add(legendRow);
+});
+
+// Add the legend to the map
+Map.add(legend);
+
+// Center the map around the area of interest
+Map.centerObject(before, 10);
+// Create a blank image for the legend
+var blank = ee.Image(0);
+
+// Define legend colors and labels
+var legendColors = ['FF0000', '00FF00', '0000FF', 'FFFF00', 'FF00FF', '00FFFF', 'FFA500', '808080'];
+var legendLabels = ['Wa', 'Fo', 'Ur', 'Gl', 'Ba', 'Pl', 'Ma', 'Ag']; // First two letters
+
+// Define legend properties
+var legendImage = ee.ImageCollection(legendColors.map(function(color, index) {
+  var label = legendLabels[index];
+  return blank.visualize({palette: color, min: 0, max: 1})
+    .set('label', label)
+    .paint(ee.Geometry.Point([index * 10, 0]), 1, 10); // Adjust spacing
+})).mosaic();
+
+// Export the legend image
+Export.image.toDrive({
+  image: legendImage,
+  description: 'Legend_Image',
+  scale: 500, // Adjust as needed
+  region: ee.Geometry.Rectangle([0, 0, 100, 10]), // Adjust for proper spacing
+  fileFormat: 'GEOTIFF'
+});
+  # CHANGE DETECTION
+
+// Define the land classes with their IDs and names
+var landClasses = [
+  {id: 0, name: 'Water'},
+  {id: 1, name: 'Forest'},
+  {id: 2, name: 'Urban'},
+  {id: 3, name: 'Glacier'},
+  {id: 4, name: 'Barren'},
+  {id: 5, name: 'Plantation'},
+  {id: 6, name: 'Marshes'},
+  {id: 7, name: 'Agriculture'}
+];
+
+// Function to generate a unique hex color palette
+var generateHexPalette = function(numColors) {
+  var colors = [];
+  for (var i = 0; i < numColors; i++) {
+    var hue = (i * 137.508) % 360; // Spread colors using the golden ratio
+    var rgb = hslToRgb(hue / 360, 0.7, 0.5);
+    var hexColor = rgbToHex(rgb[0], rgb[1], rgb[2]);
+    colors.push(hexColor);
+  }
+  return colors;
+};
+
+// Convert HSL to RGB
+function hslToRgb(h, s, l) {
+  var r, g, b;
+  if (s === 0) {
+    r = g = b = l; // Achromatic
+  } else {
+    var hue2rgb = function hue2rgb(p, q, t) {
+      if (t < 0) t += 1;
+      if (t > 1) t -= 1;
+      if (t < 1 / 6) return p + (q - p) * 6 * t;
+      if (t < 1 / 2) return q;
+      if (t < 2 / 3) return p + (q - p) * (2 / 3 - t) * 6;
+      return p;
+    };
+    var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    var p = 2 * l - q;
+    r = hue2rgb(p, q, h + 1 / 3);
+    g = hue2rgb(p, q, h);
+    b = hue2rgb(p, q, h - 1 / 3);
+  }
+  return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+}
+
+// Convert RGB to Hex
+function rgbToHex(r, g, b) {
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+}
+
+// Initialize the number of possible transitions
+var numTransitions = (landClasses.length * (landClasses.length - 1)); // From each class to every other class
+var palette = generateHexPalette(numTransitions);
+
+// Initialize an empty image to hold all transitions
+var allTransitions = ee.Image(0);
+
+// Initialize a dictionary for transition legend
+var transitionLegend = {};
+
+// Assign a unique ID for each transition and visualize
+var transitionIndex = 1; // Start from 1 to avoid overlap with the background
+landClasses.forEach(function(fromClass) {
+  var fromId = fromClass.id;
+  var fromName = fromClass.name;
+
+  landClasses.forEach(function(toClass) {
+    var toId = toClass.id;
+    var toName = toClass.name;
+
+    // Skip transitions where the class does not change
+    if (fromId !== toId) {
+      // Create a mask for this specific transition
+      var transitionMask = before.eq(fromId).and(after.eq(toId));
+
+      // Assign a unique value to this transition
+      var transitionLayer = transitionMask.multiply(transitionIndex);
+
+      // Add the transition layer to the overall transitions image
+      allTransitions = allTransitions.add(transitionLayer);
+
+      // Add this transition to the legend dictionary
+      var shortLegend = fromName.slice(0, 2).toUpperCase() + " → " + toName.slice(0, 2).toUpperCase();
+      transitionLegend[transitionIndex] = shortLegend;
+
+      // Increment the transition index
+      transitionIndex++;
+    }
+  });
+});
+
+// Visualize all transitions on the map using the defined palette
+var transitionVis = allTransitions.visualize({
+  min: 1, // Minimum transition ID
+  max: transitionIndex - 1, // Maximum transition ID
+  palette: palette.slice(0, transitionIndex - 1) // Dynamically generated palette
+});
+
+// Add the layer to the map
+Map.addLayer(transitionVis, {}, 'Land Class Transitions');
+
+// Export the map image to Google Drive
+Export.image.toDrive({
+  image: allTransitions,
+  description: 'LandClassTransitions',
+  region: before.geometry(),
+  scale: 30,
+  maxPixels: 1e13
+});
+
+// Create a legend panel
+var legend = ui.Panel({
+  style: {
+    position: 'bottom-left',
+    padding: '8px 15px'
+  }
+});
+
+// Add a title to the legend
+legend.add(ui.Label({
+  value: 'Land Class Transitions',
+  style: {
+    fontWeight: 'bold',
+    fontSize: '14px',
+    margin: '0 0 4px 0',
+    padding: '0'
+  }
+}));
+
+// Add each transition to the legend
+Object.keys(transitionLegend).forEach(function(transitionId) {
+  var color = palette[transitionId - 1];
+  var description = transitionLegend[transitionId];
+
+  // Create a legend row
+  var legendRow = ui.Panel({
+    widgets: [
+      ui.Label({
+        style: {
+          backgroundColor: color,
+          padding: '8px',
+          margin: '0 8px 0 0'
+        }
+      }),
+      ui.Label(description)
+    ],
+    layout: ui.Panel.Layout.Flow('horizontal')
+  });
+
+  // Add the row to the legend
+  legend.add(legendRow);
+});
+
+// Add the legend to the map
+Map.add(legend);
+
+// Center the map around the area of interest
+Map.centerObject(before, 10);
+// Create a blank image for the legend
+var blank = ee.Image(0);
+
+// Define legend colors and labels
+var legendColors = ['FF0000', '00FF00', '0000FF', 'FFFF00', 'FF00FF', '00FFFF', 'FFA500', '808080'];
+var legendLabels = ['Wa', 'Fo', 'Ur', 'Gl', 'Ba', 'Pl', 'Ma', 'Ag']; // First two letters
+
+// Define legend properties
+var legendImage = ee.ImageCollection(legendColors.map(function(color, index) {
+  var label = legendLabels[index];
+  return blank.visualize({palette: color, min: 0, max: 1})
+    .set('label', label)
+    .paint(ee.Geometry.Point([index * 10, 0]), 1, 10); // Adjust spacing
+})).mosaic();
+
+// Export the legend image
+Export.image.toDrive({
+  image: legendImage,
+  description: 'Legend_Image',
+  scale: 500, // Adjust as needed
+  region: ee.Geometry.Rectangle([0, 0, 100, 10]), // Adjust for proper spacing
+  fileFormat: 'GEOTIFF'
+});
+
+
+
