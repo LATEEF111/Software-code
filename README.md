@@ -1,1 +1,1 @@
-The file contains the codes used to analyze the KULC change in GEE and Python
+The file contains the developed codes of ML algorithms that were used to carry out LULC analysis in this study. The Classification and Regression Technique (CART), Support Vector Regression (SVM) and Random Forest (RF) codes are to be implement in Google Earth Engine and Convolutional Neural Networks (CNN) code is to be impemented in a python engironment. 
