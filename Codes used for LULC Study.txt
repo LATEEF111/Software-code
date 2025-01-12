@@ -1,5 +1,4 @@
-
-___________________________________________________________________________________________________________________
+__________________________________________________________________________________________________________________
 Classification and Regtression Technique (CART) Code | To be implemented in Google Earth Engine
 // Define label and bands
 var label = 'Class';
@@ -167,7 +166,6 @@ var usersAccuracy = confusionMatrix.consumersAccuracy();
 print('Users Accuracy:', usersAccuracy);
 
 _____________________________________________________________________________________________________________________
-
 Support Vector Machine Code (SVM) |  To be implemented in Google Earth Engine
 // Define label and bands
 var label = 'Class';
@@ -557,7 +555,6 @@ print('Producers Accuracy:', producersAccuracy);
 var usersAccuracy = confusionMatrix.consumersAccuracy();
 print('Users Accuracy:', usersAccuracy);
 _____________________________________________________________________________________________________________________
-
 Convolutional Neural Network (CNN) | | To be implemented in Python
 import pandas as pd
 import numpy as np
